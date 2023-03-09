@@ -62,6 +62,14 @@ class ModelWrapper(nn.Module):
             conf, encoder_channels[-1], num_classes, p=0.5,
             train_period=conf.duration, infer_period=conf.duration)
 
+    def freeze(self):
+        print('freezing backbone')
+        self.backbone.requires_grad_(False)
+
+    def unfreeze(self):
+        print('unfreezing backbone')
+        self.backbone.requires_grad_(True)
+
     def forward(self, x):
         x = self.backbone(x)
         return self.head(x[-1])

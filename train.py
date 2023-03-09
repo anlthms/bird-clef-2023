@@ -52,7 +52,7 @@ device = torch.device(device_type)
 class Trainer:
     def __init__(
             self, conf, input_dir, device, num_workers,
-            checkpoint, print_interval=100):
+            checkpoint, orig_num_classes, print_interval=100):
         self.conf = conf
         self.input_dir = input_dir
         self.device = device
@@ -64,16 +64,36 @@ class Trainer:
 
         self.create_dataloaders(num_workers)
 
-        self.model = ModelWrapper(conf, self.num_classes)
+        num_classes = orig_num_classes if checkpoint else self.num_classes
+        self.model = ModelWrapper(conf, num_classes)
+        self.freeze_backbone = False
+        if checkpoint and orig_num_classes != 264:
+            self.freeze_backbone = True
+            self.model.load_state_dict(checkpoint['model'])
+            new_model = ModelWrapper(conf, self.num_classes)
+            self.transfer(self.model, new_model)
+            self.model = new_model
+            # load optimizer state
+            #self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.model = self.model.to(device)
         self.optimizer = self.create_optimizer(conf, self.model)
         assert  self.optimizer is not None, f'Unknown optimizer {conf.optim}'
-        if checkpoint:
-            self.model.load_state_dict(checkpoint['model'])
-            self.optimizer.load_state_dict(checkpoint['optimizer'])
         self.scheduler = torch.optim.lr_scheduler.ExponentialLR(
             self.optimizer, gamma=conf.gamma)
         self.history = None
+
+    def transfer(self, src, dst):
+        for name, param in src.named_parameters():
+            size_diff = torch.tensor(dst.state_dict()[name].size()) - torch.tensor(param.size())
+            if size_diff[0] != 0:
+                print(f"Size mismatch for layer {name}. Skipping...")
+                continue
+
+            if len(size_diff) > 1 and (size_diff[0] != 0 or size_diff[1]) != 0:
+                print(f"Size mismatch for layer {name}. Skipping...")
+                continue
+            print(f'transferring {name} {param.size()}')
+            dst.state_dict()[name].copy_(param)
 
     def create_dataloaders(self, num_workers):
         conf = self.conf
@@ -134,9 +154,13 @@ class Trainer:
         writer = SummaryWriter(log_dir=log_dir)
 
         print('Training in progress...')
+        if self.freeze_backbone:
+            self.model.freeze()
         for epoch in range(epochs):
             # train for one epoch
             print(f'Epoch {epoch}:')
+            if epoch == 5 and self.freeze_backbone:
+                self.model.unfreeze()
             train_loss = self.train_epoch(epoch)
             val_loss, val_score = self.validate()
             self.scheduler.step()
@@ -273,7 +297,7 @@ def main():
     print(conf)
     trainer = Trainer(
         conf, input_dir, device, args.num_workers,
-        checkpoint, args.print_interval)
+        checkpoint, 264, args.print_interval)
     if args.validate:
         loss, score = trainer.validate()
         print(f'Validation loss {loss:.4} score {score:.4}')
