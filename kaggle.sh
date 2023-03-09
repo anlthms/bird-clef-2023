@@ -43,9 +43,11 @@ do
 done
 
 # copy trained model
-cp -v ../output/model.pth .
-cp -v ../output/last.pth .
+cp -v ../output/model1.pth .
+cp -v ../output/model2.pth .
 
+python3 ../code/strip.py model1.pth
+python3 ../code/strip.py model2.pth
 echo
 echo $(tput -T xterm setaf 4)Press enter to upload the code to a private dataset on Kaggle$(tput -T xterm sgr0)
 read
