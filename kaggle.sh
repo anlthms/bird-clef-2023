@@ -4,12 +4,8 @@
 # It creates a dataset on Kaggle with all the files required to
 # make a submission.
 
-dataset_name=kagglecode
+dataset_name=birdclefcode
 mkdir -p ../$dataset_name
-
-echo
-echo $(tput -T xterm setaf 4)Press enter to upload the code to a private dataset on Kaggle$(tput -T xterm sgr0)
-read
 
 # check for Kaggle API credentials
 [[ ! -f ~/.kaggle/kaggle.json ]]  && { echo 'error: Kaggle API token needs to be configured using the "Import Data" tab'; exit 1; }
@@ -49,6 +45,10 @@ done
 # copy trained model
 cp -v ../output/model.pth .
 cp -v ../output/last.pth .
+
+echo
+echo $(tput -T xterm setaf 4)Press enter to upload the code to a private dataset on Kaggle$(tput -T xterm sgr0)
+read
 
 # upload to kaggle
 kaggle datasets version -m "$(date)"

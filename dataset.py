@@ -105,10 +105,11 @@ class AudioDataset(data.Dataset):
 
     def __getitem__(self, index):
         conf = self.conf
+        num_segs = conf.num_segs
         if self.is_test:
-            filename = self.files[index//12]
-            label = self.labels[index//12]
-            clip_idx = index%12
+            filename = self.files[index//num_segs]
+            label = self.labels[index//num_segs]
+            clip_idx = index%num_segs
             offset = clip_idx*5
             sound = self.load_clip(filename, offset, 5)
         elif self.is_val:
@@ -128,6 +129,6 @@ class AudioDataset(data.Dataset):
 
     def __len__(self):
         if self.is_test:
-            # there are 12 five-second clips in each soundscape
-            return 12*len(self.files)
+            # there are num_segs five-second clips in each soundscape
+            return self.conf.num_segs*len(self.files)
         return len(self.files)

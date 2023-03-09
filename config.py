@@ -7,6 +7,7 @@ class Config():
             init = Config.get_defaults()
         object.__setattr__(self, "_params", dict())
         self.update(init)
+        self._params['num_segs'] = 120
 
     def __getitem__(self, key):
         return self._params[key]

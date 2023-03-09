@@ -34,3 +34,6 @@ num_mels: 192
 num_fft: 1024
 hop_length: 512
 sample_rate: 32000
+
+# number of segments in a test audioscape
+num_segs: 120

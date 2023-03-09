@@ -67,17 +67,20 @@ class Trainer:
         num_classes = orig_num_classes if checkpoint else self.num_classes
         self.model = ModelWrapper(conf, num_classes)
         self.freeze_backbone = False
+        self.optimizer = self.create_optimizer(conf, self.model)
+        assert self.optimizer is not None, f'Unknown optimizer {conf.optim}'
+        if checkpoint:
+            self.model.load_state_dict(checkpoint['model'])
+            self.optimizer.load_state_dict(checkpoint['optimizer'])
         if checkpoint and orig_num_classes != 264:
             self.freeze_backbone = True
-            self.model.load_state_dict(checkpoint['model'])
             new_model = ModelWrapper(conf, self.num_classes)
             self.transfer(self.model, new_model)
             self.model = new_model
-            # load optimizer state
+            # XXX load optimizer state
             #self.optimizer.load_state_dict(checkpoint['optimizer'])
+            self.optimizer = self.create_optimizer(conf, self.model)
         self.model = self.model.to(device)
-        self.optimizer = self.create_optimizer(conf, self.model)
-        assert  self.optimizer is not None, f'Unknown optimizer {conf.optim}'
         self.scheduler = torch.optim.lr_scheduler.ExponentialLR(
             self.optimizer, gamma=conf.gamma)
         self.history = None
