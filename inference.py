@@ -50,19 +50,19 @@ def predict_batch(outputs, threshold):
     # set prediction to 1 if probability >= threshold
     return sigmoid(outputs).cpu().numpy() >= threshold
 
-def test(loader, model, num_classes):
+def test(loader, models, num_classes):
     sigmoid = nn.Sigmoid()
-    preds = np.zeros((len(loader.dataset), num_classes), dtype=np.float32)
+    preds = np.zeros((len(models), len(loader.dataset), num_classes), dtype=np.float32)
     start_idx = 0
-    model.eval()
     with torch.no_grad():
         for inputs, _ in loader:
             inputs = inputs.to(device)
-            outputs = model(inputs)
-            end_idx = start_idx + outputs.shape[0]
-            preds[start_idx:end_idx] = sigmoid(outputs).cpu().numpy()
-            start_idx = end_idx
-    return preds
+            for model_idx, model in enumerate(models):
+                model.eval()
+                outputs = model(inputs)
+                preds[model_idx, start_idx:start_idx + outputs.shape[0]] = sigmoid(outputs).cpu().numpy()
+            start_idx += outputs.shape[0]
+    return preds.mean(axis=0)
 
 def save_results(conf, input_dir, df, preds, class_names, threshold):
     num_segs = conf.num_segs
@@ -105,13 +105,17 @@ def run(input_dir, model_dir, model_files, threshold):
     train_df = pd.read_csv(meta_file, dtype=str)
     class_names = np.array(get_class_names(train_df))
     num_classes = len(class_names)
+    models = []
     preds = []
     for model_file in model_files:
         model, conf = create_model(model_dir, model_file, num_classes)
-        loader, df = create_test_loader(conf, input_dir, class_names)
-        assert len(loader.dataset) == conf.num_segs*df.shape[0]
-        preds.append(test(loader, model, num_classes))
-    final_preds = np.stack(preds).mean(axis=0)
+        # assume that conf is the same for all models
+        models.append(model)
+    loader, df = create_test_loader(conf, input_dir, class_names)
+    assert len(loader.dataset) == conf.num_segs*df.shape[0]
+    #preds.append(test(loader, model, num_classes))
+    #final_preds = np.stack(preds).mean(axis=0)
+    final_preds = test(loader, models, num_classes)
     save_results(conf, input_dir, df, final_preds, class_names, threshold)
 
 if __name__ == '__main__':
